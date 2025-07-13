@@ -1,0 +1,25 @@
+{
+  "name": "sudo-discord-bot",
+  "version": "1.0.0",
+  "description": "A Discord bot that sends messages via webhook as another user using /sudo",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "engines": {
+    "node": ">=16.9.0"
+  },
+  "dependencies": {
+    "discord.js": "^14.14.1",
+    "dotenv": "^16.4.5"
+  },
+  "keywords": [
+    "discord",
+    "bot",
+    "webhook",
+    "sudo",
+    "discord.js"
+  ],
+  "author": "MegaCode111",
+  "license": "MIT"
+}
