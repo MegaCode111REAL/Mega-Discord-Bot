@@ -219,9 +219,12 @@ client.on('interactionCreate', async interaction => {
     };
 
     await targetChannel.send({
-      content: `✅ **Suggestion approved!**\nThank you, <@${firstMessage.author.id}>!`,
-      embeds: [embed]
-    });
+  content: `✅ **Suggestion approved!**`,
+  embeds: [embed],
+  files: files
+});
+
+await targetChannel.send(`🙏 Thank you, <@${starterMessage.author.id}>!`);
 
     await interaction.reply({ content: '✅ Approved and posted.', ephemeral: true });
   }
