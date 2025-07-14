@@ -17,7 +17,6 @@ const client = new Client({
   ]
 });
 
-// Memory store
 const quietedUsers = new Set();
 
 const roastReplies = [
@@ -45,7 +44,6 @@ client.once('ready', () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
 });
 
-// Quieted user response
 client.on('messageCreate', async message => {
   if (message.author.bot || !message.guild) return;
   if (quietedUsers.has(message.author.id)) {
@@ -56,7 +54,6 @@ client.on('messageCreate', async message => {
 });
 
 client.on('interactionCreate', async interaction => {
-  // Autocomplete for give
   if (interaction.isAutocomplete() && interaction.commandName === 'give') {
     const focused = interaction.options.getFocused(true);
     if (focused.name === 'item') {
@@ -67,7 +64,6 @@ client.on('interactionCreate', async interaction => {
     }
   }
 
-  // Autocomplete for kill
   if (interaction.isAutocomplete() && interaction.commandName === 'kill') {
     const focused = interaction.options.getFocused(true);
     if (focused.name === 'player') {
@@ -80,7 +76,6 @@ client.on('interactionCreate', async interaction => {
     }
   }
 
-  // Autocomplete for approve
   if (interaction.isAutocomplete() && interaction.commandName === 'approve') {
     const focused = interaction.options.getFocused(true);
     if (focused.name === 'post') {
@@ -103,10 +98,24 @@ client.on('interactionCreate', async interaction => {
     if (!hasOwnerRole) return interaction.reply({ content: '❌ OWNER role required.', ephemeral: true });
 
     const msg = interaction.options.getString('message');
-    const selectedUser = interaction.options.getUser('user');
+    const userInput = interaction.options.getString('user');
     const overrideName = interaction.options.getString('username');
-    const name = overrideName || selectedUser?.username || 'SudoBot';
-    const avatar = selectedUser?.displayAvatarURL({ format: 'png' });
+
+    let name = overrideName || 'SudoBot';
+    let avatar = null;
+
+    if (userInput && !overrideName) {
+      try {
+        const fetchedUser = await client.users.fetch(userInput);
+        name = fetchedUser.username;
+        avatar = fetchedUser.displayAvatarURL({ format: 'png' });
+      } catch {
+        name = userInput;
+        avatar = null;
+      }
+    } else if (userInput) {
+      name = userInput;
+    }
 
     try {
       const hook = await interaction.channel.createWebhook({ name });
@@ -119,7 +128,6 @@ client.on('interactionCreate', async interaction => {
     }
   }
 
-  // /question context
   if (interaction.isMessageContextMenuCommand() && interaction.commandName === 'Question') {
     const message = interaction.targetMessage;
     const originalAuthor = message.author;
@@ -135,7 +143,6 @@ client.on('interactionCreate', async interaction => {
     }
   }
 
-  // /give
   if (interaction.isChatInputCommand() && interaction.commandName === 'give') {
     const player = interaction.options.getString('player');
     let rawItem = interaction.options.getString('item');
@@ -152,7 +159,6 @@ client.on('interactionCreate', async interaction => {
     return interaction.reply({ content: response });
   }
 
-  // /kill
   if (interaction.isChatInputCommand() && interaction.commandName === 'kill') {
     const hasOwnerRole = interaction.member.roles.cache.some(r => r.name === 'OWNER');
     if (!hasOwnerRole) return interaction.reply({ content: '❌ OWNER role required.', ephemeral: true });
@@ -168,7 +174,6 @@ client.on('interactionCreate', async interaction => {
     await interaction.reply(`💀 *${target.displayName} was slain by ${interaction.user.username}.*`);
   }
 
-  // /quiet
   if (interaction.isChatInputCommand() && interaction.commandName === 'quiet') {
     const user = interaction.options.getUser('user');
     const hasOwnerRole = interaction.member.roles.cache.some(r => r.name === 'OWNER');
@@ -178,7 +183,6 @@ client.on('interactionCreate', async interaction => {
     await interaction.reply(`🔇 <@${user.id}> has been quieted.`);
   }
 
-  // /unquiet
   if (interaction.isChatInputCommand() && interaction.commandName === 'unquiet') {
     const user = interaction.options.getUser('user');
     const hasOwnerRole = interaction.member.roles.cache.some(r => r.name === 'OWNER');
@@ -191,46 +195,53 @@ client.on('interactionCreate', async interaction => {
     }
   }
 
-  // /approve
   if (interaction.isChatInputCommand() && interaction.commandName === 'approve') {
     const postId = interaction.options.getString('post');
     const targetChannel = interaction.options.getChannel('channel');
     const hasOwnerRole = interaction.member.roles.cache.some(r => r.name === 'OWNER');
-    if (!hasOwnerRole) return interaction.reply({ content: '❌ OWNER role required.', ephemeral: true });
+
+    if (!hasOwnerRole) {
+      return interaction.reply({ content: '❌ OWNER role required.', ephemeral: true });
+    }
 
     const post = await interaction.guild.channels.fetch(postId).catch(() => null);
     if (!post || !post.isThread()) {
-      return interaction.reply({ content: '❌ Invalid post selected.', ephemeral: true });
+      return interaction.reply({ content: '❌ Invalid forum post selected.', ephemeral: true });
     }
 
-    const messages = await post.messages.fetch({ limit: 1 });
-    const firstMessage = messages.first();
-    if (!firstMessage) return interaction.reply({ content: '❌ Could not fetch post content.', ephemeral: true });
+    const starterMessage = await post.fetchStarterMessage().catch(() => null);
+    if (!starterMessage) {
+      return interaction.reply({ content: '❌ Could not fetch post content.', ephemeral: true });
+    }
 
     const embed = {
       title: post.name,
-      description: firstMessage.content || '*(no text content)*',
+      description: starterMessage.content || '*(no text content)*',
       color: 0x57f287,
       url: `https://discord.com/channels/${interaction.guildId}/${post.id}`,
       author: {
-        name: firstMessage.author.tag,
-        icon_url: firstMessage.author.displayAvatarURL()
+        name: starterMessage.author.tag,
+        icon_url: starterMessage.author.displayAvatarURL()
       }
     };
 
+    const files = starterMessage.attachments.map(att => ({
+      attachment: att.url,
+      name: att.name
+    }));
+
     await targetChannel.send({
-  content: `✅ **Suggestion approved!**`,
-  embeds: [embed],
-  files: files
-});
+      content: `✅ **Suggestion approved!**`,
+      embeds: [embed],
+      files: files
+    });
 
-await targetChannel.send(`🙏 Thank you, <@${starterMessage.author.id}>!`);
-
-    await interaction.reply({ content: '✅ Approved and posted.', ephemeral: true });
+    await targetChannel.send(`🙏 Thank you, <@${starterMessage.author.id}>!`);
+    await interaction.reply({ content: '✅ Approved and posted with attachments.', ephemeral: true });
   }
 });
 
-// Command registration
+// Slash & context commands
 const TOKEN = process.env.TOKEN;
 const CLIENT_ID = process.env.CLIENT_ID;
 const GUILD_ID = process.env.GUILD_ID;
@@ -241,8 +252,8 @@ const commands = [
     .setDescription('Send a message via webhook as someone else')
     .addStringOption(opt =>
       opt.setName('message').setDescription('Message to send').setRequired(true))
-    .addUserOption(opt =>
-      opt.setName('user').setDescription('User to copy avatar/username from').setRequired(false))
+    .addStringOption(opt =>
+      opt.setName('user').setDescription('User ID or name to copy avatar/username from').setRequired(false))
     .addStringOption(opt =>
       opt.setName('username').setDescription('Custom name to display').setRequired(false)),
 
@@ -292,10 +303,10 @@ const commands = [
 const rest = new REST({ version: '10' }).setToken(TOKEN);
 
 (async () => {
-  console.log('🔄 Registering commands...');
+  console.log('🔄 Registering slash commands...');
   await rest.put(Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID), {
     body: commands.map(cmd => cmd.toJSON())
   });
-  console.log('✅ Slash commands registered.');
+  console.log('✅ Commands registered.');
   client.login(TOKEN);
 })();
