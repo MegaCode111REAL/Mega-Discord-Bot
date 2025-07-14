@@ -1,1 +1,1 @@
-# Sudo-Discord-Bot
+# Mega-Discord-Bot
