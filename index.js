@@ -40,6 +40,17 @@ const itemList = {
   "golden_apple": "Golden Apple"
 };
 
+function hasRequiredRole(member) {
+  const roles = member.roles.cache.map(r => r.name.toLowerCase());
+  const hasOwner = roles.includes('owner');
+  if (hasOwner) return true;
+
+  const guildHasOwnerRole = member.guild.roles.cache.some(r => r.name === 'OWNER');
+  if (!guildHasOwnerRole && (roles.includes('admin'))) return true;
+
+  return false;
+}
+
 client.once('ready', () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
 });
@@ -54,194 +65,185 @@ client.on('messageCreate', async message => {
 });
 
 client.on('interactionCreate', async interaction => {
-  if (interaction.isAutocomplete() && interaction.commandName === 'give') {
-    const focused = interaction.options.getFocused(true);
-    if (focused.name === 'item') {
-      const filtered = Object.entries(itemList)
-        .filter(([id]) => id.startsWith(focused.value.toLowerCase()))
-        .map(([id, label]) => ({ name: label, value: id }));
-      return interaction.respond(filtered.slice(0, 25));
-    }
-  }
+  if (interaction.isChatInputCommand()) {
+    const commandName = interaction.commandName;
 
-  if (interaction.isAutocomplete() && interaction.commandName === 'kill') {
-    const focused = interaction.options.getFocused(true);
-    if (focused.name === 'player') {
-      const members = await interaction.guild.members.fetch();
-      const suggestions = members.map(m => ({
-        name: m.displayName,
-        value: m.id
-      }));
-      return interaction.respond(suggestions.slice(0, 25));
-    }
-  }
+    // SUDO
+    if (commandName === 'sudo') {
+      if (!hasRequiredRole(interaction.member)) {
+        return interaction.reply({ content: '❌ OWNER role required.', ephemeral: true });
+      }
+      const msg = interaction.options.getString('message');
+      const userInput = interaction.options.getString('user');
+      const overrideName = interaction.options.getString('username');
+      let name = overrideName || 'SudoBot';
+      let avatar = null;
 
-  if (interaction.isAutocomplete() && interaction.commandName === 'approve') {
-    const focused = interaction.options.getFocused(true);
-    if (focused.name === 'post') {
-      const posts = [];
-      for (const [id, channel] of interaction.guild.channels.cache) {
-        if (channel.isThread() && channel.parent?.type === 15) {
-          posts.push({ name: channel.name, value: channel.id });
+      if (userInput && !overrideName) {
+        try {
+          const fetchedUser = await client.users.fetch(userInput);
+          name = fetchedUser.username;
+          avatar = fetchedUser.displayAvatarURL({ format: 'png', dynamic: true });
+        } catch {
+          name = userInput;
+          avatar = null;
         }
-      }
-      const filtered = posts.filter(p =>
-        p.name.toLowerCase().startsWith(focused.value.toLowerCase())
-      );
-      await interaction.respond(filtered.slice(0, 25));
-    }
-  }
-
-  // /sudo
-  if (interaction.isChatInputCommand() && interaction.commandName === 'sudo') {
-    const hasOwnerRole = interaction.member.roles.cache.some(r => r.name === 'OWNER');
-    if (!hasOwnerRole) return interaction.reply({ content: '❌ OWNER role required.', ephemeral: true });
-
-    const msg = interaction.options.getString('message');
-    const userInput = interaction.options.getString('user');
-    const overrideName = interaction.options.getString('username');
-
-    let name = overrideName || 'SudoBot';
-    let avatar = null;
-
-    if (userInput && !overrideName) {
-      try {
-        const fetchedUser = await client.users.fetch(userInput);
-        name = fetchedUser.username;
-        avatar = fetchedUser.displayAvatarURL({ format: 'png' });
-      } catch {
+      } else if (userInput) {
         name = userInput;
-        avatar = null;
       }
-    } else if (userInput) {
-      name = userInput;
-    }
 
-    try {
       const hook = await interaction.channel.createWebhook({ name });
       await hook.send({ content: msg, username: name, avatarURL: avatar });
-      await hook.delete();
+      setTimeout(() => hook.delete().catch(() => {}), 1000);
       await interaction.reply({ content: `✅ Sent as **${name}**`, ephemeral: true });
-    } catch (err) {
-      console.error(err);
-      await interaction.reply({ content: '❌ Could not send message.', ephemeral: true });
+    }
+
+    // CLEAR
+    else if (commandName === 'clear') {
+      if (!hasRequiredRole(interaction.member)) {
+        return interaction.reply({ content: '❌ OWNER role required.', ephemeral: true });
+      }
+
+      const channel = interaction.options.getChannel('channel');
+      if (!channel || channel.type !== 0) {
+        return interaction.reply({ content: '❌ Please select a valid text channel.', ephemeral: true });
+      }
+
+      const channelName = channel.name;
+      const category = channel.parent;
+      const position = channel.position;
+      const permissionOverwrites = channel.permissionOverwrites.cache.map(po => ({
+        id: po.id,
+        allow: po.allow.bitfield,
+        deny: po.deny.bitfield,
+        type: po.type
+      }));
+
+      await interaction.reply({ content: `🧹 Clearing <#${channel.id}>...`, ephemeral: true });
+      await channel.delete();
+      const newChannel = await interaction.guild.channels.create({
+        name: channelName,
+        type: 0,
+        parent: category,
+        position,
+        permissionOverwrites
+      });
+      await interaction.followUp({ content: `✅ Cleared and recreated <#${newChannel.id}>.`, ephemeral: true });
+    }
+
+    // GIVE
+    else if (commandName === 'give') {
+      const player = interaction.options.getString('player');
+      let rawItem = interaction.options.getString('item');
+      const amount = interaction.options.getInteger('amount') || 1;
+      const nbt = interaction.options.getString('nbt') || '';
+
+      if (rawItem.startsWith('minecraft:')) rawItem = rawItem.split(':')[1];
+      const friendlyName = itemList[rawItem];
+      if (!friendlyName) {
+        return interaction.reply({ content: `❌ Unknown item: \`${rawItem}\``, ephemeral: true });
+      }
+
+      const response = `🧱 Gave ${player} ${amount} ${friendlyName}${nbt ? ` ${nbt}` : ''}`;
+      return interaction.reply({ content: response });
+    }
+
+    // KILL
+    else if (commandName === 'kill') {
+      if (interaction.guild.name !== 'The 𝐜𝐨𝐨𝐥 𝒹𝒾𝓈𝒸ℴ𝓇𝒹') {
+        return interaction.reply({ content: '❌ This command can only be used in the designated server.', ephemeral: true });
+      }
+
+      if (!hasRequiredRole(interaction.member)) {
+        return interaction.reply({ content: '❌ OWNER role required.', ephemeral: true });
+      }
+
+      const targetId = interaction.options.getString('player');
+      const target = await interaction.guild.members.fetch(targetId).catch(() => null);
+      const punishedRole = interaction.guild.roles.cache.find(r => r.name === 'PUNISHED');
+      if (!target || !punishedRole) {
+        return interaction.reply({ content: '❌ Could not find member or PUNISHED role.', ephemeral: true });
+      }
+
+      await target.roles.add(punishedRole);
+      await interaction.reply(`💀 *${target.displayName} was slain by ${interaction.user.username}.*`);
+    }
+
+    // QUIET
+    else if (commandName === 'quiet') {
+      if (!hasRequiredRole(interaction.member)) {
+        return interaction.reply({ content: '❌ OWNER role required.', ephemeral: true });
+      }
+
+      const user = interaction.options.getUser('user');
+      quietedUsers.add(user.id);
+      await interaction.reply(`🔇 <@${user.id}> has been quieted.`);
+    }
+
+    // UNQUIET
+    else if (commandName === 'unquiet') {
+      if (!hasRequiredRole(interaction.member)) {
+        return interaction.reply({ content: '❌ OWNER role required.', ephemeral: true });
+      }
+
+      const user = interaction.options.getUser('user');
+      quietedUsers.delete(user.id);
+      await interaction.reply(`🔊 <@${user.id}> is no longer quieted.`);
+    }
+
+    // APPROVE
+    else if (commandName === 'approve') {
+      if (!hasRequiredRole(interaction.member)) {
+        return interaction.reply({ content: '❌ OWNER role required.', ephemeral: true });
+      }
+
+      const postId = interaction.options.getString('post');
+      const targetChannel = interaction.options.getChannel('channel');
+      const post = await interaction.guild.channels.fetch(postId).catch(() => null);
+      if (!post || !post.isThread()) {
+        return interaction.reply({ content: '❌ Invalid forum post.', ephemeral: true });
+      }
+
+      const starterMessage = await post.fetchStarterMessage().catch(() => null);
+      if (!starterMessage) {
+        return interaction.reply({ content: '❌ Could not fetch original message.', ephemeral: true });
+      }
+
+      const embed = {
+        title: post.name,
+        description: starterMessage.content || '*No content*',
+        color: 0x57f287,
+        url: `https://discord.com/channels/${interaction.guildId}/${post.id}`,
+        author: {
+          name: starterMessage.author.tag,
+          icon_url: starterMessage.author.displayAvatarURL()
+        }
+      };
+
+      await targetChannel.send({ content: '✅ Suggestion approved!', embeds: [embed] });
+      await targetChannel.send(`🙏 Thank you, <@${starterMessage.author.id}>!`);
+      await interaction.reply({ content: '✅ Done!', ephemeral: true });
     }
   }
 
-  if (interaction.isMessageContextMenuCommand() && interaction.commandName === 'Question') {
+  // CONTEXT MENU: Question
+  else if (interaction.isMessageContextMenuCommand() && interaction.commandName === 'Question') {
     const message = interaction.targetMessage;
-    const originalAuthor = message.author;
     const asker = interaction.user;
     const guildName = interaction.guild?.name || 'a server';
 
-    const dmMessage = `❓ **${asker.tag}** asks:\n> Why did you send:\n> “${message.content}”\n> in “${guildName}”?`;
     try {
-      await originalAuthor.send(dmMessage);
+      await message.author.send(
+        `❓ ${asker.tag} asks:\n> Why did you send:\n> “${message.content}”\n> in “${guildName}”?`
+      );
       await interaction.reply({ content: '✅ I asked them for you.', ephemeral: true });
     } catch {
       await interaction.reply({ content: '❌ Could not DM the user.', ephemeral: true });
     }
   }
-
-  if (interaction.isChatInputCommand() && interaction.commandName === 'give') {
-    const player = interaction.options.getString('player');
-    let rawItem = interaction.options.getString('item');
-    const amount = interaction.options.getInteger('amount') || 1;
-    const nbt = interaction.options.getString('nbt') || '';
-
-    if (rawItem.startsWith('minecraft:')) rawItem = rawItem.split(':')[1];
-    const friendlyName = itemList[rawItem];
-    if (!friendlyName) {
-      return interaction.reply({ content: `❌ Unknown item: \`${rawItem}\``, ephemeral: true });
-    }
-
-    const response = `🧱 Gave ${player} ${amount} ${friendlyName}${nbt ? ` ${nbt}` : ''}`;
-    return interaction.reply({ content: response });
-  }
-
-  if (interaction.isChatInputCommand() && interaction.commandName === 'kill') {
-    const hasOwnerRole = interaction.member.roles.cache.some(r => r.name === 'OWNER');
-    if (!hasOwnerRole) return interaction.reply({ content: '❌ OWNER role required.', ephemeral: true });
-
-    const targetId = interaction.options.getString('player');
-    const target = await interaction.guild.members.fetch(targetId).catch(() => null);
-    if (!target) return interaction.reply({ content: '❌ Could not find member.', ephemeral: true });
-
-    const punishedRole = interaction.guild.roles.cache.find(r => r.name === 'PUNISHED');
-    if (!punishedRole) return interaction.reply({ content: '❌ Role `PUNISHED` not found.', ephemeral: true });
-
-    await target.roles.add(punishedRole);
-    await interaction.reply(`💀 *${target.displayName} was slain by ${interaction.user.username}.*`);
-  }
-
-  if (interaction.isChatInputCommand() && interaction.commandName === 'quiet') {
-    const user = interaction.options.getUser('user');
-    const hasOwnerRole = interaction.member.roles.cache.some(r => r.name === 'OWNER');
-    if (!hasOwnerRole) return interaction.reply({ content: '❌ OWNER role required.', ephemeral: true });
-
-    quietedUsers.add(user.id);
-    await interaction.reply(`🔇 <@${user.id}> has been quieted.`);
-  }
-
-  if (interaction.isChatInputCommand() && interaction.commandName === 'unquiet') {
-    const user = interaction.options.getUser('user');
-    const hasOwnerRole = interaction.member.roles.cache.some(r => r.name === 'OWNER');
-    if (!hasOwnerRole) return interaction.reply({ content: '❌ OWNER role required.', ephemeral: true });
-
-    if (quietedUsers.delete(user.id)) {
-      await interaction.reply(`🔊 <@${user.id}> has been unquieted.`);
-    } else {
-      await interaction.reply({ content: `⚠️ <@${user.id}> wasn’t quieted.`, ephemeral: true });
-    }
-  }
-
-  if (interaction.isChatInputCommand() && interaction.commandName === 'approve') {
-    const postId = interaction.options.getString('post');
-    const targetChannel = interaction.options.getChannel('channel');
-    const hasOwnerRole = interaction.member.roles.cache.some(r => r.name === 'OWNER');
-
-    if (!hasOwnerRole) {
-      return interaction.reply({ content: '❌ OWNER role required.', ephemeral: true });
-    }
-
-    const post = await interaction.guild.channels.fetch(postId).catch(() => null);
-    if (!post || !post.isThread()) {
-      return interaction.reply({ content: '❌ Invalid forum post selected.', ephemeral: true });
-    }
-
-    const starterMessage = await post.fetchStarterMessage().catch(() => null);
-    if (!starterMessage) {
-      return interaction.reply({ content: '❌ Could not fetch post content.', ephemeral: true });
-    }
-
-    const embed = {
-      title: post.name,
-      description: starterMessage.content || '*(no text content)*',
-      color: 0x57f287,
-      url: `https://discord.com/channels/${interaction.guildId}/${post.id}`,
-      author: {
-        name: starterMessage.author.tag,
-        icon_url: starterMessage.author.displayAvatarURL()
-      }
-    };
-
-    const files = starterMessage.attachments.map(att => ({
-      attachment: att.url,
-      name: att.name
-    }));
-
-    await targetChannel.send({
-      content: `✅ **Suggestion approved!**`,
-      embeds: [embed],
-      files: files
-    });
-
-    await targetChannel.send(`🙏 Thank you, <@${starterMessage.author.id}>!`);
-    await interaction.reply({ content: '✅ Approved and posted with attachments.', ephemeral: true });
-  }
 });
 
-// Slash & context commands
+// Slash Command Registration
 const TOKEN = process.env.TOKEN;
 const CLIENT_ID = process.env.CLIENT_ID;
 const GUILD_ID = process.env.GUILD_ID;
@@ -249,51 +251,57 @@ const GUILD_ID = process.env.GUILD_ID;
 const commands = [
   new SlashCommandBuilder()
     .setName('sudo')
-    .setDescription('Send a message via webhook as someone else')
+    .setDescription('Send a message as someone else via webhook')
     .addStringOption(opt =>
-      opt.setName('message').setDescription('Message to send').setRequired(true))
+      opt.setName('message').setDescription('Message content').setRequired(true))
     .addStringOption(opt =>
-      opt.setName('user').setDescription('User ID or name to copy avatar/username from').setRequired(false))
+      opt.setName('user').setDescription('User ID or name').setRequired(false))
     .addStringOption(opt =>
-      opt.setName('username').setDescription('Custom name to display').setRequired(false)),
+      opt.setName('username').setDescription('Override name').setRequired(false)),
+
+  new SlashCommandBuilder()
+    .setName('clear')
+    .setDescription('Clear all messages in a text channel')
+    .addChannelOption(opt =>
+      opt.setName('channel').setDescription('Target channel').setRequired(true)),
 
   new SlashCommandBuilder()
     .setName('give')
-    .setDescription('Minecraft-style give command (for fun)')
+    .setDescription('Minecraft-style give command')
     .addStringOption(opt =>
       opt.setName('player').setDescription('Player name').setRequired(true))
     .addStringOption(opt =>
-      opt.setName('item').setDescription('Minecraft item ID').setRequired(true).setAutocomplete(true))
+      opt.setName('item').setDescription('Item ID').setRequired(true))
     .addIntegerOption(opt =>
-      opt.setName('amount').setDescription('Amount to give').setRequired(false))
+      opt.setName('amount').setDescription('How many'))
     .addStringOption(opt =>
-      opt.setName('nbt').setDescription('Optional NBT data').setRequired(false)),
+      opt.setName('nbt').setDescription('NBT data')),
 
   new SlashCommandBuilder()
     .setName('kill')
-    .setDescription('Fake kill a player and punish them')
+    .setDescription('Punish a member (The 𝐜𝐨𝐨𝐥 𝒹𝒾𝓈𝒸ℴ𝓇𝒹 only)')
     .addStringOption(opt =>
-      opt.setName('player').setDescription('Player to target').setRequired(true).setAutocomplete(true)),
+      opt.setName('player').setDescription('Target user ID').setRequired(true)),
 
   new SlashCommandBuilder()
     .setName('quiet')
-    .setDescription('Replies to a user with roast every time they talk')
+    .setDescription('Auto-roast a user on message')
     .addUserOption(opt =>
       opt.setName('user').setDescription('User to quiet').setRequired(true)),
 
   new SlashCommandBuilder()
     .setName('unquiet')
-    .setDescription('Stops replying to a user with roast')
+    .setDescription('Remove quiet mode')
     .addUserOption(opt =>
       opt.setName('user').setDescription('User to unquiet').setRequired(true)),
 
   new SlashCommandBuilder()
     .setName('approve')
-    .setDescription('Approve a forum post and send it to a channel')
+    .setDescription('Approve a forum post')
     .addStringOption(opt =>
-      opt.setName('post').setDescription('Post to approve').setRequired(true).setAutocomplete(true))
+      opt.setName('post').setDescription('Thread ID').setRequired(true))
     .addChannelOption(opt =>
-      opt.setName('channel').setDescription('Where to send the approval').setRequired(true)),
+      opt.setName('channel').setDescription('Target channel').setRequired(true)),
 
   new ContextMenuCommandBuilder()
     .setName('Question')
@@ -303,7 +311,7 @@ const commands = [
 const rest = new REST({ version: '10' }).setToken(TOKEN);
 
 (async () => {
-  console.log('🔄 Registering slash commands...');
+  console.log('🔄 Registering commands...');
   await rest.put(Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID), {
     body: commands.map(cmd => cmd.toJSON())
   });
