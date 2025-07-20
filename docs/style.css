@@ -1,104 +1,67 @@
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-  background: #fff;
-  color: #24292e;
+  background-color: #0d1117;
+  color: #c9d1d9;
+  font-family: 'Segoe UI', sans-serif;
 }
 
-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: #f6f8fa;
-  border-bottom: 1px solid #e1e4e8;
-  padding: 10px 20px;
-}
-
-.logo {
-  font-size: 1.5rem;
-  font-weight: bold;
-}
-
-nav {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-}
-
-nav a {
+a {
+  color: #58a6ff;
   text-decoration: none;
-  color: #0366d6;
 }
 
-button {
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 600;
-  border: none;
-  border-radius: 6px;
-  padding: 6px 12px;
+a:hover {
+  text-decoration: underline;
 }
 
-#login-btn {
-  background: #2ea44f;
-  color: white;
-}
-
-.invite-button {
-  background-color: #2ea44f;
-  color: white;
-  font-size: 18px;
-  padding: 14px 28px;
-  margin-top: 20px;
-  border-radius: 6px;
-}
-
-main {
-  max-width: 700px;
-  margin: 60px auto;
-  padding: 0 20px;
+.container {
   text-align: center;
+  padding: 80px 20px;
 }
 
-h1 {
-  font-size: 2.5rem;
+.site-header {
+  background-color: #161b22;
+  border-bottom: 1px solid #30363d;
+}
+
+.title {
+  font-size: 3em;
+  margin: 0.2em 0;
+}
+
+.subtitle {
+  font-size: 1.25em;
   margin-bottom: 20px;
 }
 
-ul {
-  list-style: none;
-  padding-left: 0;
+.btn {
+  display: inline-block;
+  padding: 12px 24px;
+  font-size: 1em;
+  background-color: #238636;
+  color: white;
+  border-radius: 6px;
+  font-weight: bold;
+  transition: background-color 0.3s;
 }
 
-ul li {
-  border-bottom: 1px solid #e1e4e8;
-  padding: 6px 0;
+.btn:hover {
+  background-color: #2ea043;
 }
 
-.dropdown {
-  position: relative;
+.main-nav {
+  background-color: #0d1117;
+  padding: 20px;
+  display: flex;
+  justify-content: center;
+  gap: 30px;
+  border-top: 1px solid #21262d;
 }
 
-.dropdown-content {
-  display: none;
-  position: absolute;
-  top: 30px;
-  background-color: #f9f9f9;
-  box-shadow: 0px 2px 6px rgba(0,0,0,0.15);
-  z-index: 1;
-}
-
-.dropdown-content a {
-  display: block;
-  padding: 10px 14px;
-  color: #24292e;
-  text-decoration: none;
-}
-
-.dropdown-content a:hover {
-  background-color: #f0f0f0;
-}
-
-.show {
-  display: block;
+.footer {
+  text-align: center;
+  padding: 30px 10px;
+  background-color: #161b22;
+  color: #8b949e;
+  border-top: 1px solid #30363d;
 }
