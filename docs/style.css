@@ -1,67 +1,118 @@
 body {
-  margin: 0;
   background-color: #0d1117;
   color: #c9d1d9;
-  font-family: 'Segoe UI', sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  margin: 0;
 }
 
-a {
+header {
+  background-color: #161b22;
+  padding: 15px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #30363d;
+}
+
+.logo {
+  font-size: 1.5em;
+  font-weight: bold;
+  color: white;
+}
+
+nav {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+nav a {
   color: #58a6ff;
   text-decoration: none;
+  font-weight: 500;
 }
 
-a:hover {
-  text-decoration: underline;
+nav button {
+  background-color: #238636;
+  color: white;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
 }
 
-.container {
+nav button:hover {
+  background-color: #2ea043;
+}
+
+main {
   text-align: center;
   padding: 80px 20px;
 }
 
-.site-header {
-  background-color: #161b22;
-  border-bottom: 1px solid #30363d;
-}
-
-.title {
-  font-size: 3em;
-  margin: 0.2em 0;
-}
-
-.subtitle {
-  font-size: 1.25em;
+h1 {
+  font-size: 2.5em;
   margin-bottom: 20px;
 }
 
-.btn {
-  display: inline-block;
-  padding: 12px 24px;
-  font-size: 1em;
-  background-color: #238636;
+.invite-button {
+  background-color: #5865f2;
   color: white;
+  border: none;
+  padding: 12px 24px;
   border-radius: 6px;
-  font-weight: bold;
-  transition: background-color 0.3s;
+  font-size: 1.1em;
+  cursor: pointer;
 }
 
-.btn:hover {
-  background-color: #2ea043;
+.invite-button:hover {
+  background-color: #4752c4;
 }
 
-.main-nav {
-  background-color: #0d1117;
-  padding: 20px;
-  display: flex;
-  justify-content: center;
-  gap: 30px;
-  border-top: 1px solid #21262d;
+ul {
+  list-style: none;
+  padding: 0;
 }
 
-.footer {
-  text-align: center;
-  padding: 30px 10px;
+ul li {
   background-color: #161b22;
-  color: #8b949e;
-  border-top: 1px solid #30363d;
+  border: 1px solid #30363d;
+  border-radius: 4px;
+  margin: 6px auto;
+  max-width: 400px;
+  padding: 8px 12px;
+  color: #c9d1d9;
+}
+
+.dropdown {
+  position: relative;
+}
+
+.dropdown-content {
+  display: none;
+  position: absolute;
+  top: 40px;
+  right: 0;
+  background-color: #21262d;
+  min-width: 180px;
+  z-index: 1;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid #30363d;
+}
+
+.dropdown-content a {
+  color: #c9d1d9;
+  padding: 10px 14px;
+  text-decoration: none;
+  display: block;
+}
+
+.dropdown-content a:hover {
+  background-color: #30363d;
+}
+
+.show {
+  display: block;
 }
