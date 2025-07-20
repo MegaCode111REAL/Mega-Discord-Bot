@@ -1,1 +1,99 @@
-test
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MegaBot - Invite</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <div class="logo">MegaBot</div>
+    <nav>
+      <a href="index.html">Home</a>
+      <div class="dropdown">
+        <button onclick="toggleDropdown()">Features ▼</button>
+        <div class="dropdown-content" id="dropdown">
+          <a href="command-creator.html">Command Creator</a>
+          <a href="#">Server Moderation</a> <!-- Placeholder for now -->
+        </div>
+      </div>
+      <button id="login-btn">Login with Discord</button>
+    </nav>
+  </header>
+
+  <main>
+    <h1>Invite MegaBot!<br>Invite MegaBot to your Discord server!</h1>
+    <button class="invite-button" id="invite-btn">Invite MegaBot</button>
+
+    <div id="user-info" style="display:none;">
+      <h2>Logged in as <span id="username"></span></h2>
+      <h3>Servers you own</h3>
+      <ul id="owned-guilds"></ul>
+      <h3>Other servers</h3>
+      <ul id="other-guilds"></ul>
+      <button id="logout-btn">Logout</button>
+    </div>
+  </main>
+
+  <script>
+    const BOT_CLIENT_ID = "YOUR_BOT_CLIENT_ID";
+    const CLIENT_ID = "YOUR_DISCORD_APP_CLIENT_ID";
+    const REDIRECT_URI = window.location.href;
+    const SCOPES = ["identify", "guilds"];
+    const RESPONSE_TYPE = "token";
+
+    function toggleDropdown() {
+      document.getElementById("dropdown").classList.toggle("show");
+    }
+
+    document.getElementById("invite-btn").onclick = () => {
+      const url = `https://discord.com/oauth2/authorize?client_id=${BOT_CLIENT_ID}&scope=bot%20applications.commands&permissions=8`;
+      window.open(url, '_blank');
+    };
+
+    function getToken() {
+      const hash = window.location.hash.substring(1);
+      const params = new URLSearchParams(hash);
+      return params.get('access_token');
+    }
+
+    async function fetchDiscord(endpoint, token) {
+      return fetch(`https://discord.com/api/${endpoint}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      }).then(res => res.json());
+    }
+
+    async function init() {
+      let token = localStorage.getItem('discord_token') || getToken();
+      if (token) {
+        localStorage.setItem('discord_token', token);
+        window.history.replaceState({}, "", window.location.pathname);
+        document.getElementById("login-btn").style.display = "none";
+
+        const user = await fetchDiscord("users/@me", token);
+        document.getElementById("username").textContent = `${user.username}#${user.discriminator}`;
+
+        const guilds = await fetchDiscord("users/@me/guilds", token);
+        const owned = guilds.filter(g => g.owner);
+        const others = guilds.filter(g => !g.owner);
+
+        document.getElementById("user-info").style.display = "block";
+        document.getElementById("owned-guilds").innerHTML = owned.map(g => `<li>${g.name}</li>`).join("");
+        document.getElementById("other-guilds").innerHTML = others.map(g => `<li>${g.name}</li>`).join("");
+      }
+
+      document.getElementById("login-btn").onclick = () => {
+        window.location.href = `https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=${RESPONSE_TYPE}&scope=${SCOPES.join('%20')}`;
+      };
+
+      document.getElementById("logout-btn").onclick = () => {
+        localStorage.removeItem('discord_token');
+        window.location.reload();
+      };
+    }
+
+    init();
+  </script>
+</body>
+</html>
