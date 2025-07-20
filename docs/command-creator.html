@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Command Creator - MegaBot</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="main-header">
+    <h1>Command Creator</h1>
+  </header>
+
+  <main class="creator-container">
+    <div class="command-box">
+      <span>/</span>
+      <input type="text" id="commandName" placeholder="command-name" />
+      <button onclick="addAttribute()">+</button>
+    </div>
+    <div id="attributesContainer"></div>
+  </main>
+
+  <script>
+    let attributeCount = 0;
+
+    function addAttribute() {
+      attributeCount++;
+
+      const attrInput = document.createElement('input');
+      attrInput.placeholder = `Attribute ${attributeCount} name`;
+      attrInput.className = 'attr-name';
+
+      const descInput = document.createElement('textarea');
+      descInput.placeholder = `What Attribute ${attributeCount} does`;
+      descInput.className = 'attr-desc';
+
+      const container = document.getElementById('attributesContainer');
+      container.appendChild(attrInput);
+      container.appendChild(descInput);
+    }
+  </script>
+</body>
+</html>
