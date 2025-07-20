@@ -1,5 +1,5 @@
-const { Client, GatewayIntentBits, Partials, Routes, REST, SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, WebhookClient } = require('discord.js');
-const { token, clientId } = require('./config.json');
+const { Client, GatewayIntentBits, Partials, Routes, REST, SlashCommandBuilder, PermissionsBitField, EmbedBuilder } = require('discord.js');
+const fs = require('fs');
 
 const client = new Client({
   intents: [
@@ -11,137 +11,223 @@ const client = new Client({
   partials: [Partials.Channel]
 });
 
-const quietedUsers = new Map();
+const clientId = process.env.CLIENT_ID;
+const token = process.env.TOKEN;
 
 const commands = [
   new SlashCommandBuilder()
     .setName('sudo')
-    .setDescription('Send a message as someone else')
-    .addStringOption(option => option.setName('username').setDescription('Name to use').setRequired(true))
-    .addStringOption(option => option.setName('message').setDescription('Message to send').setRequired(true)),
+    .setDescription('Make someone say something.')
+    .addStringOption(option =>
+      option.setName('username')
+        .setDescription('Username to impersonate')
+        .setRequired(true))
+    .addStringOption(option =>
+      option.setName('message')
+        .setDescription('Message to send')
+        .setRequired(true)),
 
   new SlashCommandBuilder()
     .setName('question')
-    .setDescription('Ask someone why they sent a message')
-    .addStringOption(option => option.setName('user').setDescription('User').setRequired(true))
-    .addStringOption(option => option.setName('message').setDescription('Message content').setRequired(true)),
+    .setDescription('Ask someone why they sent a message.')
+    .addStringOption(option =>
+      option.setName('message')
+        .setDescription('The message to question')
+        .setRequired(true))
+    .addUserOption(option =>
+      option.setName('user')
+        .setDescription('The user who sent the message')
+        .setRequired(true)),
+
+  new SlashCommandBuilder()
+    .setName('give')
+    .setDescription('Give a Minecraft item to someone.')
+    .addStringOption(option =>
+      option.setName('target')
+        .setDescription('Target username')
+        .setRequired(true))
+    .addStringOption(option =>
+      option.setName('item')
+        .setDescription('Minecraft item ID (e.g., minecraft:nether_star or nether_star)')
+        .setRequired(true))
+    .addIntegerOption(option =>
+      option.setName('count')
+        .setDescription('How many to give')
+        .setRequired(true)),
+
+  new SlashCommandBuilder()
+    .setName('kill')
+    .setDescription('Kills a server member (adds punished role).')
+    .addUserOption(option =>
+      option.setName('target')
+        .setDescription('User to kill')
+        .setRequired(true)),
 
   new SlashCommandBuilder()
     .setName('quiet')
-    .setDescription('Quiet a user so they get random shut up messages')
-    .addStringOption(option => option.setName('username').setDescription('Username to quiet').setRequired(true))
-];
+    .setDescription('Quiet someone so their messages are intercepted.')
+    .addUserOption(option =>
+      option.setName('target')
+        .setDescription('User to quiet')
+        .setRequired(true)),
 
-client.once('ready', async () => {
-  console.log(`🟢 Logged in as ${client.user.tag}`);
-  const rest = new REST({ version: '10' }).setToken(token);
-  await rest.put(Routes.applicationCommands(clientId), { body: commands.map(cmd => cmd.toJSON()) });
-  console.log('✅ Slash commands registered');
+  new SlashCommandBuilder()
+    .setName('approve')
+    .setDescription('Approve a forum suggestion.')
+    .addChannelOption(option =>
+      option.setName('channel')
+        .setDescription('Channel to post approval in')
+        .setRequired(true))
+    .addStringOption(option =>
+      option.setName('postid')
+        .setDescription('Forum post message ID')
+        .setRequired(true)),
+
+  new SlashCommandBuilder()
+    .setName('clear')
+    .setDescription('Clear all messages in a channel.')
+    .addChannelOption(option =>
+      option.setName('channel')
+        .setDescription('Channel to clear')
+        .setRequired(true)),
+]
+.map(command => command.toJSON());
+
+const rest = new REST({ version: '10' }).setToken(token);
+
+(async () => {
+  try {
+    console.log('🔄 Registering slash commands...');
+    await rest.put(Routes.applicationCommands(clientId), { body: commands });
+    console.log('✅ Slash commands registered.');
+  } catch (error) {
+    console.error('❌ Error registering commands:', error);
+  }
+})();
+
+const quietedUsers = new Map();
+
+client.on('ready', () => {
+  console.log(`🤖 Logged in as ${client.user.tag}`);
 });
 
 client.on('interactionCreate', async interaction => {
   if (!interaction.isChatInputCommand()) return;
 
-  const { commandName, options, channel, guild, user } = interaction;
+  const isDM = interaction.channel.type === 1; // 1 = DM
+  const memberRoles = interaction.member?.roles?.cache?.map(r => r.name) || [];
+  const hasOwner = interaction.guild?.roles.cache.some(r => r.name === 'OWNER');
+  const isOwner = memberRoles.includes('OWNER');
+  const isAdmin = memberRoles.includes('admin') || memberRoles.includes('Admin');
+  const privileged = isOwner || (!hasOwner && isAdmin);
 
-  // OWNER/admin role check
-  const isDM = !guild;
-  const member = guild?.members.cache.get(user.id);
-  const roles = member?.roles.cache.map(r => r.name) || [];
-  const isOwner = roles.includes('OWNER') || roles.includes('admin') || roles.includes('Admin');
+  const cmd = interaction.commandName;
+  const userTag = `${interaction.user.username}#${interaction.user.discriminator}`;
 
-  if (!isDM && commandName !== 'question' && !isOwner) {
-    return interaction.reply({ content: '❌ You must have the OWNER or admin role to use this command.', ephemeral: true });
+  // permission checks
+  const requiresOwner = ['sudo', 'give', 'kill', 'quiet', 'approve', 'clear'].includes(cmd);
+  if (!isDM && requiresOwner && !privileged) {
+    return await interaction.reply({ content: '❌ You need the OWNER or Admin role to use this.', ephemeral: true });
   }
 
-  if (commandName === 'sudo') {
-    const username = options.getString('username');
-    const msg = options.getString('message');
-
-    const webhook = await channel.createWebhook({ name: username });
-    await webhook.send({ content: msg, username });
-    await interaction.reply({ content: `🧱 Sent as **${username}**: "${msg}"`, ephemeral: true });
-    setTimeout(() => webhook.delete().catch(() => {}), 5000);
+  if (cmd === 'sudo') {
+    const username = interaction.options.getString('username');
+    const message = interaction.options.getString('message');
+    await interaction.reply({ content: `🧱 ${username}: ${message}` });
   }
 
-  else if (commandName === 'question') {
-    const targetUser = options.getString('user');
-    const msg = options.getString('message');
-    const target = client.users.cache.find(u => u.username === targetUser);
+  else if (cmd === 'question') {
+    const msg = interaction.options.getString('message');
+    const targetUser = interaction.options.getUser('user');
+    const dm = await targetUser.createDM();
+    const prompt = isDM
+      ? `Why did you send “${msg}” to ${interaction.user.username}?`
+      : `Why did you send “${msg}” in ${interaction.guild.name}?`;
+    await dm.send(prompt);
+    await interaction.reply({ content: `❓ Asked ${targetUser.username}.`, ephemeral: true });
+  }
 
-    const dmMsg = isDM
-      ? `Why did you send “${msg}” to ${targetUser}?`
-      : `Why did you send “${msg}” in ${guild.name}?`;
+  else if (cmd === 'give') {
+    const target = interaction.options.getString('target');
+    let item = interaction.options.getString('item');
+    const count = interaction.options.getInteger('count');
+    if (item.startsWith('minecraft:')) item = item.split(':')[1];
+    await interaction.reply(`🧱 Gave ${target} ${count} ${capitalizeItem(item)}`);
+  }
 
+  else if (cmd === 'kill') {
+    if (interaction.guild.name !== 'The 𝐜𝐨𝐨𝐥 𝒹𝒾𝓈𝒸ℴ𝓇𝒹') {
+      return await interaction.reply({ content: '❌ This command only works in "The 𝐜𝐨𝐨𝐥 𝒹𝒾𝓈𝒸ℴ𝓇𝒹".', ephemeral: true });
+    }
+    const target = interaction.options.getUser('target');
+    const member = await interaction.guild.members.fetch(target.id);
+    const punished = interaction.guild.roles.cache.find(r => r.name === 'PUNISHED');
+    if (punished) await member.roles.add(punished);
+    await interaction.reply(`💀 Killed ${target.username}`);
+  }
+
+  else if (cmd === 'quiet') {
+    const target = interaction.options.getUser('target');
+    quietedUsers.set(target.id, interaction.user.username);
+    await interaction.reply(`🔇 Quieted ${target.username}`);
+  }
+
+  else if (cmd === 'approve') {
+    const channel = interaction.options.getChannel('channel');
+    const postId = interaction.options.getString('postid');
     try {
-      await user.send(dmMsg);
-      await interaction.reply({ content: '📨 Question sent.', ephemeral: true });
-    } catch {
-      await interaction.reply({ content: '❌ Could not send DM.', ephemeral: true });
+      const msg = await channel.messages.fetch(postId);
+      const embed = EmbedBuilder.from(msg.embeds[0]);
+      await channel.send({
+        content: '✅ Suggestion approved!',
+        embeds: [embed]
+      });
+      await channel.send(`Thank you, ${msg.author || msg.user || msg.member?.user || 'user'}!`);
+      await interaction.reply({ content: '✅ Approved.', ephemeral: true });
+    } catch (e) {
+      await interaction.reply({ content: '❌ Could not fetch post.', ephemeral: true });
     }
   }
 
-  else if (commandName === 'quiet') {
-    const targetName = options.getString('username');
-    const target = client.users.cache.find(u => u.username === targetName);
-    if (!target) return interaction.reply({ content: '❌ User not found.', ephemeral: true });
-
-    quietedUsers.set(target.id, user.username);
-
-    if (isDM) {
-      const messages = [
-        `'${user.username}' doesn’t care, why are you talking?`,
-        `You've been silenced by ${user.username}.`,
-        `${user.username} said to stop talking.`,
-        `${user.username} muted you, FYI.`
-      ];
-      const random = messages[Math.floor(Math.random() * messages.length)];
-      try {
-        await target.send(random);
-        await interaction.reply({ content: '✅ Quieted in DMs.', ephemeral: true });
-      } catch {
-        await interaction.reply({ content: '❌ Could not DM user.', ephemeral: true });
-      }
-    } else {
-      await interaction.reply({ content: `🤫 ${targetName} will now be quieted.`, ephemeral: true });
+  else if (cmd === 'clear') {
+    const channel = interaction.options.getChannel('channel');
+    if (channel.isTextBased()) {
+      const messages = await channel.messages.fetch({ limit: 100 });
+      await channel.bulkDelete(messages, true);
+      await interaction.reply({ content: `🧹 Cleared ${messages.size} messages in ${channel.name}.`, ephemeral: true });
     }
   }
 });
 
-client.on('messageCreate', async message => {
-  if (message.author.bot) return;
-
-  const quietedBy = quietedUsers.get(message.author.id);
+client.on('messageCreate', async msg => {
+  if (msg.author.bot) return;
+  const quietedBy = quietedUsers.get(msg.author.id);
   if (!quietedBy) return;
 
-  if (!message.guild) return;
-
-  const channel = message.channel;
-  const webhook = await channel.createWebhook({ name: message.author.username });
-
-  try {
-    await message.delete();
-    await webhook.send({
-      content: message.content,
-      username: message.author.username,
-      avatarURL: message.author.displayAvatarURL(),
-      flags: 64 // ephemeral
-    });
-
+  if (msg.channel.type === 1) {
     const responses = [
-      `'${quietedBy}' doesn’t care, why are you talking?`,
-      `${quietedBy} muted you.`,
-      `No one wants to hear that, says ${quietedBy}.`,
-      `${quietedBy} told you to zip it.`
+      `"${quietedBy}" doesn’t care, why are you talking?`,
+      `"${quietedBy}" muted you, stop typing.`,
+      `"${quietedBy}" thinks you're too loud.`,
+      `"${quietedBy}" wants silence.`
     ];
-    const random = responses[Math.floor(Math.random() * responses.length)];
-
-    await message.channel.send({ content: random, ephemeral: true });
-  } catch (err) {
-    console.error(err);
-  } finally {
-    setTimeout(() => webhook.delete().catch(() => {}), 5000);
+    const rand = responses[Math.floor(Math.random() * responses.length)];
+    await msg.author.send(rand);
+  } else {
+    await msg.delete();
+    await msg.channel.send({
+      content: `🧱 ${msg.author.username}: ${msg.content}`,
+      ephemeral: true
+    });
+    await msg.channel.send({
+      content: `🔇 "${quietedBy}" says be quiet.`,
+      ephemeral: true
+    });
   }
 });
 
 client.login(token);
+
+function capitalizeItem(item) {
+  return item.split('_').map(w => w[0].toUpperCase() + w.slice(1)).join(' ');
+}
