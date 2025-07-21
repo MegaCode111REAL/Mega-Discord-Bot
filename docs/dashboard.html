@@ -4,82 +4,60 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>MegaBot Dashboard</title>
-  <link rel="stylesheet" href="style.css" />
   <style>
     body {
-      background-color: #0d1117;
-      color: #c9d1d9;
-      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #1e1e1e;
+      color: #fff;
+      font-family: 'Segoe UI', sans-serif;
       margin: 0;
+      padding: 2em;
     }
-
-    header {
-      padding: 1rem;
-      background-color: #161b22;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+    h1 {
+      color: #4fc3f7;
     }
-
-    header h1 {
-      margin: 0;
-      font-size: 1.5rem;
-    }
-
-    .sidebar {
-      width: 200px;
-      height: 100vh;
-      background-color: #161b22;
-      position: fixed;
-      top: 0;
-      left: 0;
-      padding: 1rem;
-      box-sizing: border-box;
-    }
-
-    .sidebar a {
-      display: block;
-      color: #58a6ff;
-      margin-bottom: 1rem;
-      text-decoration: none;
-    }
-
-    .sidebar a:hover {
-      text-decoration: underline;
-    }
-
-    .main {
-      margin-left: 220px;
-      padding: 2rem;
+    .info {
+      margin-top: 1em;
+      background: #2a2a2a;
+      padding: 1em;
+      border-radius: 10px;
     }
   </style>
 </head>
 <body>
-  <header>
-    <h1>MegaBot Dashboard</h1>
-    <div id="userDisplay">Loading...</div>
-  </header>
-
-  <div class="sidebar">
-    <a href="index.html">🏠 Home</a>
-    <a href="command-creator.html">⚙️ Command Creator</a>
-    <a href="#">🛡️ Server Moderation</a>
-  </div>
-
-  <div class="main">
-    <h2>Welcome to your dashboard</h2>
-    <p>This is where you can manage your bot's behavior, create commands, and moderate your servers.</p>
+  <h1>Welcome to the MegaBot Dashboard</h1>
+  <div class="info" id="userInfo">
+    Loading...
   </div>
 
   <script>
-    const params = new URLSearchParams(window.location.search);
-    const user = params.get('user');
+    window.addEventListener("DOMContentLoaded", () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const dataParam = urlParams.get("data");
 
-    if (user) {
-      document.getElementById('userDisplay').textContent = `Logged in as ${user}`;
-    } else {
-      document.getElementById('userDisplay').textContent = 'Not logged in';
-    }
+      if (dataParam) {
+        try {
+          const decoded = JSON.parse(atob(decodeURIComponent(dataParam)));
+
+          // Save to localStorage and cookie
+          localStorage.setItem("megabot_user", JSON.stringify(decoded));
+          document.cookie = `megabot_token=${decoded.token}; path=/; max-age=3600`;
+
+          // Update UI
+          document.getElementById("userInfo").innerHTML = `
+            <strong>Logged in as:</strong> ${decoded.username}#${decoded.discriminator}<br>
+            <strong>User ID:</strong> ${decoded.id}
+          `;
+
+          // Clean up the URL
+          window.history.replaceState(null, "", window.location.pathname);
+        } catch (e) {
+          document.getElementById("userInfo").textContent = "Failed to parse login data.";
+          console.error("Error decoding data:", e);
+        }
+      } else {
+        document.getElementById("userInfo").textContent = "No login data found.";
+      }
+    });
   </script>
 </body>
 </html>
