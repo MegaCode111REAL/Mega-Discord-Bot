@@ -84,7 +84,7 @@
       }
 
       document.getElementById("login-btn").onclick = () => {
-        window.location.href = `https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=${RESPONSE_TYPE}&scope=${SCOPES.join('%20')}`;
+        window.location.href = `https://discord.com/oauth2/authorize?client_id=1396580632229843016&response_type=code&redirect_uri=https%3A%2F%2Fmegabot-api.jsut4392.workers.dev%2Fcallback&scope=identify+guilds+messages.read`;
       };
 
       document.getElementById("logout-btn").onclick = () => {
