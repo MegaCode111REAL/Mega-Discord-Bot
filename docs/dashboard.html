@@ -2,174 +2,187 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>MegaBot Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dashboard | MegaBOT</title>
+  <link rel="stylesheet" href="style.css">
   <style>
-    :root {
-      --bg: #0d1117;
-      --fg: #c9d1d9;
-      --card: #161b22;
-      --accent: #58a6ff;
-    }
-
     body {
       margin: 0;
-      padding: 0;
+      background-color: #0d1117;
+      color: white;
       font-family: sans-serif;
-      background-color: var(--bg);
-      color: var(--fg);
+    }
+
+    .top-bar {
       display: flex;
-      justify-content: center;
-      align-items: flex-start;
-      min-height: 100vh;
-    }
-
-    .container {
-      margin-top: 20px;
-      width: 90%;
-      max-width: 700px;
-      background: var(--card);
-      border: 1px solid #30363d;
-      border-radius: 8px;
-      box-shadow: 0 0 10px #0004;
-      padding: 20px;
-    }
-
-    .header {
-      font-size: 1.5rem;
-      font-weight: bold;
-      margin-bottom: 10px;
-    }
-
-    .divider {
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 24px;
+      background-color: #161b22;
       border-bottom: 1px solid #30363d;
-      margin: 10px 0;
+    }
+
+    .top-bar .logo {
+      font-size: 1.5em;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .top-bar .user-area {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .top-bar img {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+    }
+
+    .top-bar .dropdown {
+      position: relative;
+      display: inline-block;
+    }
+
+    .top-bar .dropdown-content {
+      display: none;
+      position: absolute;
+      right: 0;
+      background-color: #21262d;
+      min-width: 160px;
+      border: 1px solid #30363d;
+      z-index: 1;
+    }
+
+    .top-bar .dropdown-content a {
+      color: white;
+      padding: 10px 16px;
+      display: block;
+      text-decoration: none;
+    }
+
+    .top-bar .dropdown-content a:hover {
+      background-color: #30363d;
+    }
+
+    .top-bar .dropdown:hover .dropdown-content {
+      display: block;
+    }
+
+    main.dashboard {
+      padding: 32px;
+      max-width: 600px;
+      margin: auto;
     }
 
     .profile {
       display: flex;
       align-items: center;
-      margin: 20px 0;
-      gap: 1rem;
+      gap: 16px;
+      margin-bottom: 24px;
     }
 
     .profile img {
       width: 64px;
       height: 64px;
       border-radius: 50%;
-      border: 2px solid var(--fg);
     }
 
-    .profile-info {
-      flex: 1;
+    .profile .info {
+      display: flex;
+      flex-direction: column;
     }
 
-    .profile-info .name {
-      font-size: 1.2rem;
-      font-weight: bold;
+    .servers {
+      margin-top: 24px;
     }
 
-    .profile-info .tag {
-      color: #888;
-      font-size: 0.9rem;
+    .servers h2 {
+      margin-bottom: 8px;
     }
 
-    .sign-out-btn {
-      background-color: #8b0000;
-      border: none;
-      color: white;
-      padding: 8px 14px;
-      border-radius: 5px;
-      cursor: pointer;
-      font-size: 0.9rem;
-    }
-
-    .server-list-title {
-      font-size: 1.2rem;
-      margin: 20px 0 10px;
-    }
-
-    .server-item {
-      padding: 8px 10px;
-      background: #0d1117;
+    .server {
+      background-color: #161b22;
+      padding: 12px 16px;
       border: 1px solid #30363d;
       border-radius: 4px;
-      margin-bottom: 10px;
+      margin-bottom: 12px;
     }
-
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="header">MegaBOT</div>
-    <div class="divider"></div>
+  <header class="top-bar">
+    <div class="logo" onclick="location.href='index.html'">MegaBOT</div>
+    <div class="user-area" id="userArea">
+      <button id="loginBtn">Login</button>
+    </div>
+  </header>
 
-    <div class="profile">
-      <img id="user-avatar" src="" alt="Avatar" />
-      <div class="profile-info">
-        <div class="name" id="username">Name</div>
-        <div class="tag" id="user-tag">@username</div>
+  <main class="dashboard" id="dashboardContent">
+    <p>Welcome back, <span id="username">Loading...</span></p>
+
+    <div class="profile" id="profile" style="display:none;">
+      <img id="avatar" src="" alt="User avatar" />
+      <div class="info">
+        <strong id="displayName"></strong>
+        <span id="userTag" style="color: gray;"></span>
       </div>
-      <button class="sign-out-btn" onclick="signOut()">Sign Out</button>
     </div>
 
-    <div class="server-list-title">Servers:</div>
-    <div id="servers">
-      <div class="server-item">Loading...</div>
+    <div class="servers" id="serversSection" style="display:none;">
+      <h2>Servers:</h2>
+      <div id="serversList"></div>
     </div>
-  </div>
+  </main>
 
   <script>
-    const user = JSON.parse(localStorage.getItem('megabot_user') || '{}');
+    const loginBtn = document.getElementById('loginBtn');
+    const userArea = document.getElementById('userArea');
+    const userData = JSON.parse(localStorage.getItem('megabot_user'));
 
-    if (user.username) {
-      document.getElementById('username').textContent = user.username;
-      document.getElementById('user-tag').textContent = `@${user.username}`;
-      document.getElementById('user-avatar').src =
-        `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=128`;
-    } else {
-      location.href = "/";
-    }
+    if (userData) {
+      const profile = document.getElementById('profile');
+      const username = document.getElementById('username');
+      const displayName = document.getElementById('displayName');
+      const userTag = document.getElementById('userTag');
+      const avatar = document.getElementById('avatar');
+      const serversSection = document.getElementById('serversSection');
+      const serversList = document.getElementById('serversList');
 
-    async function loadServers() {
-      const serversContainer = document.getElementById('servers');
-      serversContainer.innerHTML = '';
+      username.textContent = userData.username;
+      displayName.textContent = userData.username;
+      userTag.textContent = '@' + userData.username;
+      avatar.src = `https://cdn.discordapp.com/avatars/${userData.id}/${userData.avatar}.png`;
 
-      try {
-        const res = await fetch('https://discord.com/api/users/@me/guilds', {
-          headers: {
-            Authorization: `Bearer ${user.token}`
-          }
+      profile.style.display = 'flex';
+      serversSection.style.display = 'block';
+
+      if (userData.ownedServers) {
+        userData.ownedServers.forEach(server => {
+          const div = document.createElement('div');
+          div.className = 'server';
+          div.textContent = '• ' + server;
+          serversList.appendChild(div);
         });
-
-        if (!res.ok) {
-          throw new Error('Failed to fetch guilds');
-        }
-
-        const guilds = await res.json();
-        const owned = guilds.filter(g => g.owner);
-
-        if (owned.length === 0) {
-          serversContainer.innerHTML = '<div class="server-item">You don’t own any servers.</div>';
-        } else {
-          owned.forEach(guild => {
-            const div = document.createElement('div');
-            div.className = 'server-item';
-            div.textContent = `• ${guild.name}`;
-            serversContainer.appendChild(div);
-          });
-        }
-      } catch (err) {
-        serversContainer.innerHTML = '<div class="server-item">Error loading servers</div>';
       }
+
+      // Replace login button with dropdown
+      userArea.innerHTML = `
+        <div class="dropdown">
+          <img src="https://cdn.discordapp.com/avatars/${userData.id}/${userData.avatar}.png" alt="pfp" />
+          <div class="dropdown-content">
+            <a href="dashboard.html">Dashboard</a>
+            <a href="#" style="color:red;" onclick="logout()">Log Out</a>
+          </div>
+        </div>
+      `;
     }
 
-    function signOut() {
+    function logout() {
       localStorage.removeItem('megabot_user');
-      location.href = '/';
+      location.href = 'index.html';
     }
-
-    loadServers();
   </script>
 </body>
 </html>
