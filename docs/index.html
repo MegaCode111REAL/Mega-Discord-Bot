@@ -2,189 +2,79 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>MegaBot - Home</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MegaBot</title>
   <link rel="stylesheet" href="style.css" />
-  <style>
-    body {
-      background-color: #0d1117;
-      color: #c9d1d9;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      margin: 0;
-      padding: 0;
-    }
-    main {
-      padding: 2rem;
-      text-align: center;
-    }
-    h1 {
-      color: #58a6ff;
-    }
-    .invite-button {
-      background-color: #238636;
-      border: none;
-      padding: 1rem 2rem;
-      border-radius: 8px;
-      color: white;
-      font-size: 1.2rem;
-      cursor: pointer;
-    }
-    .invite-button:hover {
-      background-color: #2ea043;
-    }
-  </style>
 </head>
 <body>
-
-  <!-- Top nav bar -->
   <header>
-    <nav style="background:#161b22; padding:1rem; display:flex; align-items:center; justify-content:space-between; color:#c9d1d9; position:relative;">
-
-      <div class="logo" style="font-weight:bold; font-size:1.25rem; color:#58a6ff; user-select:none;">
-        MegaBot
-      </div>
-
-      <div id="nav-guest" style="display:flex; align-items:center; gap:1rem;">
-        <button id="login-btn" style="background:#238636; border:none; padding:0.5rem 1rem; border-radius:5px; color:#fff; cursor:pointer;">
-          Login with Discord
-        </button>
-      </div>
-
-      <div id="nav-user" style="display:none; align-items:center; gap:0.5rem; position:relative; cursor:pointer;">
-        <img id="user-avatar" src="" alt="User avatar" style="width:32px; height:32px; border-radius:50%;" />
-        <span id="user-name" style="user-select:none;"></span>
-
-        <div id="user-dropdown" style="display:none; position:absolute; top:40px; right:0; background:#0d1117; border:1px solid #30363d; border-radius:5px; min-width:150px; box-shadow: 0 8px 24px rgba(149,157,165,0.2); z-index:1000;">
-          <a href="dashboard.html" style="display:block; padding:0.75rem 1rem; color:#58a6ff; text-decoration:none; user-select:none;">Dashboard</a>
-          <a href="#" id="logout-link" style="display:block; padding:0.75rem 1rem; color:#f85149; text-decoration:none; user-select:none;">Log out</a>
-        </div>
-      </div>
-
-      <div id="features-dropdown-wrapper" style="display:none; position:relative;">
-        <button id="features-btn" style="background:none; border:none; color:#58a6ff; font-size:1rem; cursor:pointer; user-select:none;">
-          Features ▼
-        </button>
-        <div id="features-dropdown" style="display:none; position:absolute; top:28px; right:0; background:#0d1117; border:1px solid #30363d; border-radius:5px; min-width:140px; box-shadow: 0 8px 24px rgba(149,157,165,0.2); z-index:1000;">
-          <a href="command-creator.html" style="display:block; padding:0.75rem 1rem; color:#58a6ff; text-decoration:none; user-select:none;">Command Creator</a>
-          <a href="server-moderation.html" style="display:block; padding:0.75rem 1rem; color:#58a6ff; text-decoration:none; user-select:none;">Server Moderation</a>
-        </div>
-      </div>
-
+    <div class="logo" onclick="location.href='index.html'" style="cursor: pointer;">MegaBOT</div>
+    <nav>
+      <ul id="nav-links">
+        <li><a href="dashboard.html">Dashboard</a></li>
+        <li><a href="#" id="login-btn">Login</a></li>
+      </ul>
     </nav>
   </header>
 
   <main>
-    <h1>Invite MegaBot!<br />Invite MegaBot to your Discord server!</h1>
-    <button
-      class="invite-button"
-      id="invite-btn"
-      onclick="window.open('https://discord.com/oauth2/authorize?client_id=1392125477254074418&scope=bot+applications.commands&permissions=8', '_blank')"
-    >
-      Invite MegaBot
-    </button>
+    <h1>Welcome to MegaBot!</h1>
+
+    <section class="invite-section">
+      <h2>Invite MegaBot!</h2>
+      <p>Invite MegaBot to your Discord server!</p>
+      <button class="invite-btn" onclick="location.href='https://discord.com/api/oauth2/authorize?client_id=1396580632229843016&permissions=8&scope=bot%20applications.commands'">
+        Invite to Server
+      </button>
+    </section>
+
+    <section class="features">
+      <h2>Features</h2>
+      <ul>
+        <li>Custom Command Creator</li>
+        <li>Server Moderation Tools</li>
+        <li>Interactive Dashboard</li>
+        <li>Fun & Utility Commands</li>
+      </ul>
+    </section>
+
+    <section class="commands">
+      <h2>Popular Commands</h2>
+      <ul>
+        <li><code>/give</code> – Grant an item to a user</li>
+        <li><code>/quiet</code> – Quiet a user (ephemeral message)</li>
+        <li><code>/kill</code> – Simulate a dramatic exit</li>
+        <li><code>/approve</code> – Approve a request</li>
+      </ul>
+    </section>
   </main>
 
   <script>
-    // Cookie helper
-    function getCookie(name) {
-      const value = `; ${document.cookie}`;
-      const parts = value.split(`; ${name}=`);
-      if (parts.length === 2) return parts.pop().split(';').shift();
-      return null;
-    }
-
-    async function fetchUser(token) {
-      const res = await fetch('https://discord.com/api/users/@me', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (!res.ok) throw new Error('Failed to fetch user');
-      return res.json();
-    }
-
-    function setupUserDropdown() {
-      const userAvatar = document.getElementById('user-avatar');
-      const userName = document.getElementById('user-name');
-      const userDropdown = document.getElementById('user-dropdown');
-
-      function toggleDropdown() {
-        userDropdown.style.display = userDropdown.style.display === 'block' ? 'none' : 'block';
-      }
-
-      userAvatar.addEventListener('click', toggleDropdown);
-      userName.addEventListener('click', toggleDropdown);
-
-      document.addEventListener('click', e => {
-        if (
-          !userDropdown.contains(e.target) &&
-          e.target !== userAvatar &&
-          e.target !== userName
-        ) {
-          userDropdown.style.display = 'none';
-        }
-      });
-
-      document.getElementById('logout-link').addEventListener('click', e => {
-        e.preventDefault();
-        document.cookie = 'discord_token=; Max-Age=0; path=/';
-        location.reload();
-      });
-    }
-
-    function setupFeaturesDropdown() {
-      const featuresBtn = document.getElementById('features-btn');
-      const featuresDropdown = document.getElementById('features-dropdown');
-
-      featuresBtn.addEventListener('click', () => {
-        featuresDropdown.style.display =
-          featuresDropdown.style.display === 'block' ? 'none' : 'block';
-      });
-
-      document.addEventListener('click', e => {
-        if (!featuresDropdown.contains(e.target) && e.target !== featuresBtn) {
-          featuresDropdown.style.display = 'none';
-        }
-      });
-    }
-
-    async function initNav() {
-      const token = getCookie('discord_token');
-
-      if (!token) {
-        // Show login button only
-        document.getElementById('nav-guest').style.display = 'flex';
-        document.getElementById('nav-user').style.display = 'none';
-        document.getElementById('features-dropdown-wrapper').style.display = 'none';
-
-        document.getElementById('login-btn').onclick = () => {
-          // Redirect to your OAuth login endpoint (Worker or Discord OAuth)
-          window.location.href =
-            'https://discord.com/api/oauth2/authorize?client_id=1396580632229843016&redirect_uri=https%3A%2F%2Fmegabot-api.jsut4392.workers.dev%2Fcallback&response_type=code&scope=identify+guilds';
-        };
-      } else {
-        // Show logged-in nav
-        document.getElementById('nav-guest').style.display = 'none';
-        document.getElementById('nav-user').style.display = 'flex';
-        document.getElementById('features-dropdown-wrapper').style.display = 'inline-block';
-
-        try {
-          const user = await fetchUser(token);
-          document.getElementById(
-            'user-avatar'
-          ).src = `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=32`;
-          document.getElementById('user-name').textContent = `${user.username}#${user.discriminator}`;
-
-          setupUserDropdown();
-          setupFeaturesDropdown();
-        } catch (e) {
-          // Token invalid, clear and reload
-          console.error('Token invalid or expired:', e);
-          document.cookie = 'discord_token=; Max-Age=0; path=/';
-          location.reload();
-        }
+    // Auto-login based on localStorage
+    const userData = localStorage.getItem("megabot_user");
+    if (userData) {
+      try {
+        const user = JSON.parse(userData);
+        const navLinks = document.getElementById("nav-links");
+        navLinks.innerHTML = `
+          <li class="dropdown">
+            <img src="https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png" alt="pfp" class="pfp" />
+            <span class="username">${user.username}</span>
+            <div class="dropdown-content">
+              <a href="dashboard.html">Dashboard</a>
+              <a href="#" onclick="logout()" style="color: red;">Log out</a>
+            </div>
+          </li>
+        `;
+      } catch (e) {
+        console.error("Failed to parse user data:", e);
       }
     }
 
-    initNav();
+    function logout() {
+      localStorage.removeItem("megabot_user");
+      location.reload();
+    }
   </script>
 </body>
 </html>
